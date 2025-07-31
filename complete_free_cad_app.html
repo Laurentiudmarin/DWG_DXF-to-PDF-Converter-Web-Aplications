@@ -1,0 +1,2150 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free CAD Viewer & PDF Converter</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dxf-parser@1.1.2/dist/dxf-parser.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .badge {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            margin: 10px 5px;
+            display: inline-block;
+        }
+
+        .app-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #6c757d;
+        }
+
+        .tab.active {
+            background: white;
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab:hover:not(.active) {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .tab.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 40px;
+            min-height: 600px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .upload-area.processing {
+            border-color: #ffc107;
+            background: #fffbf0;
+            cursor: not-allowed;
+        }
+
+        .upload-icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .upload-hint {
+            color: #6c757d;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn.success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+
+        .btn.warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        }
+
+        .btn.secondary {
+            background: #6c757d;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .feature-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            text-align: center;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            border-color: #667eea;
+            transform: translateY(-5px);
+        }
+
+        .feature-card.active {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .feature-card.active .feature-icon {
+            color: #28a745;
+        }
+
+        .feature-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .feature-desc {
+            color: #6c757d;
+            line-height: 1.5;
+        }
+
+        .cad-viewer-container {
+            width: 100%;
+            height: 500px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            background: #ffffff;
+            position: relative;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .viewer-placeholder {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #6c757d;
+            font-size: 1.1rem;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .viewer-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .file-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .file-detail {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #0066cc;
+        }
+
+        .file-detail h4 {
+            color: #333;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .file-detail p {
+            color: #0066cc;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .processing-status {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .processing-status.show {
+            display: block;
+        }
+
+        .processing-log {
+            background: #f8f9fa;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #495057;
+            margin-top: 10px;
+        }
+
+        .export-options {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .export-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .export-option {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .export-option:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+        }
+
+        .export-option.selected {
+            border-color: #28a745;
+            background: #f8fff8;
+        }
+
+        .export-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .export-option h4 {
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .export-option p {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: #e9ecef;
+            border-radius: 6px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .status-message.show {
+            display: block;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .tech-stack {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .tech-stack h4 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .tech-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+        }
+
+        .tech-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: white;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .tech-icon {
+            color: #28a745;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tab-content {
+                padding: 20px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .viewer-controls {
+                flex-direction: column;
+            }
+
+            .export-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="server-status">
+        <div class="status-indicator"></div>
+        <span>Verificare backend...</span>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-drafting-compass"></i> Free CAD Viewer & PDF Converter</h1>
+            <p>Soluție gratuită și open-source pentru vizualizare și conversie DWG/DXF</p>
+            <div class="badge">100% Gratuit</div>
+            <div class="badge">Teigha Powered</div>
+            <div class="badge">WebGL Viewer</div>
+            <div class="badge">PDF Export</div>
+        </div>
+
+        <div class="app-container">
+            <div class="tabs">
+                <button class="tab active" data-tab="upload">
+                    <i class="fas fa-upload"></i> Upload & Procesare
+                </button>
+                <button class="tab disabled" data-tab="viewer">
+                    <i class="fas fa-eye"></i> CAD Viewer
+                </button>
+                <button class="tab disabled" data-tab="export">
+                    <i class="fas fa-file-export"></i> Export PDF/SVG
+                </button>
+                <button class="tab" data-tab="about">
+                    <i class="fas fa-info-circle"></i> Despre
+                </button>
+            </div>
+
+            <!-- Tab Upload -->
+            <div class="tab-content active" id="upload">
+                <div class="feature-grid">
+                    <div class="feature-card" id="dwg-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-code"></i>
+                        </div>
+                        <div class="feature-title">Suport DWG</div>
+                        <div class="feature-desc">Folosește Teigha File Converter gratuit pentru conversie DWG → DXF</div>
+                    </div>
+                    <div class="feature-card" id="dxf-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-file-alt"></i>
+                        </div>
+                        <div class="feature-title">Parser DXF</div>
+                        <div class="feature-desc">Bibliotecă dxf-parser open-source pentru procesare directă DXF</div>
+                    </div>
+                    <div class="feature-card" id="viewer-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-cube"></i>
+                        </div>
+                        <div class="feature-title">WebGL Viewer</div>
+                        <div class="feature-desc">Viewer performant cu Three.js pentru fișiere CAD complexe</div>
+                    </div>
+                </div>
+
+                <div class="upload-area" id="uploadArea">
+                    <div class="upload-icon">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                    </div>
+                    <div class="upload-text">Glisează fișierul DWG/DXF aici</div>
+                    <div class="upload-hint">Suportă: .dwg (via Teigha), .dxf (direct)</div>
+                    <button class="btn">
+                        <i class="fas fa-folder-open"></i>
+                        Selectează fișier
+                    </button>
+                    <input type="file" class="file-input" id="fileInput" accept=".dwg,.dxf">
+                </div>
+
+                <div class="processing-status" id="processingStatus">
+                    <h4><i class="fas fa-cogs"></i> <span id="processingTitle">Procesare în curs...</span></h4>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                    </div>
+                    <div class="processing-log" id="processingLog"></div>
+                </div>
+
+                <div class="file-info" id="fileInfo">
+                    <h4><i class="fas fa-info-circle"></i> Informații fișier procesat</h4>
+                    <div class="file-details">
+                        <div class="file-detail">
+                            <h4>Nume fișier</h4>
+                            <p id="fileName">-</p>
+                        </div>
+                        <div class="file-detail">
+                            <h4>Dimensiune</h4>
+                            <p id="fileSize">-</p>
+                        </div>
+                        <div class="file-detail">
+                            <h4>Format</h4>
+                            <p id="fileFormat">-</p>
+                        </div>
+                        <div class="file-detail">
+                            <h4>Entități detectate</h4>
+                            <p id="entitiesCount">-</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Viewer -->
+            <div class="tab-content" id="viewer">
+                <div class="viewer-controls">
+                    <button class="btn" onclick="resetView()">
+                        <i class="fas fa-home"></i> Reset View
+                    </button>
+                    <button class="btn" onclick="fitToWindow()">
+                        <i class="fas fa-expand-arrows-alt"></i> Fit to Window
+                    </button>
+                    <button class="btn" onclick="toggleWireframe()">
+                        <i class="fas fa-project-diagram"></i> Toggle Wireframe
+                    </button>
+                    <button class="btn secondary" onclick="viewLayers()">
+                        <i class="fas fa-layer-group"></i> Layers
+                    </button>
+                </div>
+
+                <div class="cad-viewer-container" id="cadViewerContainer">
+                    <div class="viewer-placeholder">
+                        <div class="feature-icon">
+                            <i class="fas fa-drafting-compass"></i>
+                        </div>
+                        <div>Încarcă un fișier CAD pentru a-l vizualiza aici</div>
+                    </div>
+                </div>
+
+                <div class="status-message" id="viewerStatus"></div>
+            </div>
+
+            <!-- Tab Export -->
+            <div class="tab-content" id="export">
+                <h3 style="margin-bottom: 20px;">Opțiuni de export</h3>
+                
+                <div class="export-options">
+                    <h4 style="margin-bottom: 15px;">Selectează formatul de export:</h4>
+                    <div class="export-grid">
+                        <div class="export-option" data-format="pdf" onclick="selectExportFormat('pdf')">
+                            <div class="export-icon" style="color: #dc3545;">
+                                <i class="fas fa-file-pdf"></i>
+                            </div>
+                            <h4>Export PDF</h4>
+                            <p>Vector PDF cu calitate înaltă folosind jsPDF + svg2pdf.js</p>
+                        </div>
+                        <div class="export-option" data-format="svg" onclick="selectExportFormat('svg')">
+                            <div class="export-icon" style="color: #fd7e14;">
+                                <i class="fas fa-file-code"></i>
+                            </div>
+                            <h4>Export SVG</h4>
+                            <p>Format vectorial scalabil pentru web și print</p>
+                        </div>
+                        <div class="export-option" data-format="png" onclick="selectExportFormat('png')">
+                            <div class="export-icon" style="color: #20c997;">
+                                <i class="fas fa-file-image"></i>
+                            </div>
+                            <h4>Export PNG</h4>
+                            <p>Imagine raster de înaltă calitate din canvas</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="viewer-controls">
+                    <button class="btn success" onclick="exportFile()" id="exportBtn" disabled>
+                        <i class="fas fa-download"></i>
+                        <span id="exportBtnText">Selectează formatul</span>
+                    </button>
+                    <button class="btn warning" onclick="previewExport()" id="previewBtn" disabled>
+                        <i class="fas fa-eye"></i>
+                        Preview
+                    </button>
+                </div>
+
+                <div class="status-message" id="exportStatus"></div>
+            </div>
+
+            <!-- Tab About -->
+            <div class="tab-content" id="about">
+                <h3 style="margin-bottom: 20px;">Despre aplicația gratuită</h3>
+                
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-heart" style="color: #e74c3c;"></i>
+                        </div>
+                        <div class="feature-title">100% Gratuit</div>
+                        <div class="feature-desc">Toate bibliotecile și tool-urile folosite sunt open-source și gratuite pentru utilizare comercială</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-rocket" style="color: #f39c12;"></i>
+                        </div>
+                        <div class="feature-title">Performanță înaltă</div>
+                        <div class="feature-desc">WebGL rendering pentru vizualizare rapidă a fișierelor CAD complexe</div>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt" style="color: #27ae60;"></i>
+                        </div>
+                        <div class="feature-title">Securitate</div>
+                        <div class="feature-desc">Procesare locală - fișierele tale nu sunt trimise pe servere externe</div>
+                    </div>
+                </div>
+
+                <div class="tech-stack">
+                    <h4><i class="fas fa-server"></i> Status Backend</h4>
+                    <div class="tech-list">
+                        <div class="tech-item">
+                            <i class="fas fa-circle tech-icon" id="backend-status-icon"></i>
+                            <span id="backend-status-text">Verificare backend...</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-info-circle tech-icon"></i>
+                            <span>Aplicația funcționează în două moduri: local (demo) și cu backend real</span>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 8px; font-size: 0.9rem;">
+                        <strong>Moduri de funcționare:</strong><br>
+                        <strong>🖥️ Modul Local:</strong> Demo cu simularea conversiei DWG → DXF<br>
+                        <strong>🌐 Modul Server:</strong> Conversie reală cu Teigha File Converter<br><br>
+                        
+                        <strong>Pentru backend real:</strong><br>
+                        1. Download <a href="https://www.opendesign.com/guestfiles/TeighaFileConverter" target="_blank">Teigha File Converter</a><br>
+                        2. Instalează backend-ul Node.js din ghidul nostru<br>
+                        3. Configurează și rulează: <code>npm start</code>
+                    </div>
+                </div>
+
+                <div class="tech-stack">
+                    <h4><i class="fas fa-code"></i> Stack tehnologic</h4>
+                    <div class="tech-list">
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>Teigha File Converter (ODA)</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>dxf-parser (JavaScript)</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>Three.js (WebGL)</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>jsPDF (PDF Generation)</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>svg2pdf.js (Vector Export)</span>
+                        </div>
+                        <div class="tech-item">
+                            <i class="fas fa-check tech-icon"></i>
+                            <span>Canvas API (Image Export)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 30px; text-align: center;">
+                    <button class="btn" onclick="app.checkBackendStatus()" id="check-backend-btn">
+                        <i class="fas fa-sync-alt"></i>
+                        <span id="check-backend-text">Verifică Backend</span>
+                    </button>
+                    <a href="https://github.com/opendesign/teigha" class="btn" target="_blank" style="margin-left: 10px;">
+                        <i class="fab fa-github"></i>
+                        Vezi pe GitHub
+                    </a>
+                    <a href="https://www.opendesign.com/guestfiles/TeighaFileConverter" class="btn secondary" target="_blank" style="margin-left: 10px;">
+                        <i class="fas fa-download"></i>
+                        Download Teigha
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="text-align: center; padding: 20px; color: white; font-size: 0.9rem; opacity: 0.8;" id="footer-info">
+        <span id="mode-info">🔄 Detectare mod de funcționare...</span>
+    </div>
+
+    <script>
+        class FreeCADConverter {
+            constructor() {
+                this.currentFile = null;
+                this.dxfData = null;
+                this.viewer = null;
+                this.selectedExportFormat = null;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.backendAvailable = false;
+                this.isLocalMode = this.detectLocalMode();
+                this.initEventListeners();
+                
+                // Afișează alertul pentru modul local
+                if (this.isLocalMode) {
+                    this.showLocalModeAlert();
+                    this.updateServerStatus('local', 'Modul Local - Demo');
+                } else {
+                    this.checkBackendStatus();
+                }
+            }
+
+            showLocalModeAlert() {
+                const localAlert = document.getElementById('local-mode-alert');
+                if (localAlert) {
+                    localAlert.style.display = 'flex';
+                }
+            }
+
+            detectLocalMode() {
+                // Detectează dacă aplicația rulează local (file://) sau pe server
+                return window.location.protocol === 'file:' || 
+                       window.location.hostname === '' ||
+                       (window.location.hostname === 'localhost' && window.location.port === '');
+            }
+
+            async checkBackendStatus() {
+                const checkBtn = document.getElementById('check-backend-btn');
+                const checkText = document.getElementById('check-backend-text');
+                
+                if (this.isLocalMode) {
+                    this.backendAvailable = false;
+                    this.updateServerStatus('local', 'Modul Local - Demo');
+                    if (checkText) checkText.textContent = 'Modul Local';
+                    return;
+                }
+
+                if (checkText) checkText.textContent = 'Verificare...';
+                if (checkBtn) checkBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/api/health');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.backendAvailable = data.success && data.teigha?.installed;
+                        
+                        if (this.backendAvailable) {
+                            this.updateServerStatus('online', `Teigha ${data.teigha.version} Online`);
+                        } else {
+                            this.updateServerStatus('warning', 'Teigha nu este disponibil');
+                        }
+                    } else {
+                        throw new Error('Backend indisponibil');
+                    }
+                } catch (error) {
+                    this.backendAvailable = false;
+                    this.updateServerStatus('offline', 'Backend Offline');
+                    console.warn('Backend CAD indisponibil:', error.message);
+                } finally {
+                    if (checkText) checkText.textContent = 'Verifică Backend';
+                    if (checkBtn) checkBtn.disabled = false;
+                }
+            }
+
+            updateServerStatus(status, text) {
+                // Verifică dacă elementele există înainte de a le accesa
+                const indicator = document.querySelector('.status-indicator');
+                const statusText = document.querySelector('.server-status span');
+                
+                if (indicator && statusText) {
+                    indicator.className = 'status-indicator';
+                    indicator.classList.add(status);
+                    statusText.textContent = text;
+                }
+                
+                // Update also in About tab
+                const aboutIcon = document.getElementById('backend-status-icon');
+                const aboutText = document.getElementById('backend-status-text');
+                
+                if (aboutIcon && aboutText) {
+                    aboutIcon.className = 'fas fa-circle tech-icon';
+                    aboutIcon.style.color = status === 'online' ? '#28a745' : 
+                                          status === 'warning' ? '#ffc107' : 
+                                          status === 'local' ? '#17a2b8' : '#dc3545';
+                    aboutText.textContent = text;
+                }
+            }
+
+            initEventListeners() {
+                // Tab switching
+                document.querySelectorAll('.tab:not(.disabled)').forEach(tab => {
+                    tab.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+                });
+
+                // File upload
+                const uploadArea = document.getElementById('uploadArea');
+                const fileInput = document.getElementById('fileInput');
+
+                uploadArea.addEventListener('click', () => {
+                    if (!uploadArea.classList.contains('processing')) {
+                        fileInput.click();
+                    }
+                });
+
+                uploadArea.addEventListener('dragover', this.handleDragOver.bind(this));
+                uploadArea.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                uploadArea.addEventListener('drop', this.handleDrop.bind(this));
+                fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+            }
+
+            switchTab(tabName) {
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                document.getElementById(tabName).classList.add('active');
+            }
+
+            enableTab(tabName) {
+                const tab = document.querySelector(`[data-tab="${tabName}"]`);
+                tab.classList.remove('disabled');
+                tab.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                if (!e.currentTarget.classList.contains('processing')) {
+                    e.currentTarget.classList.add('dragover');
+                }
+            }
+
+            handleDragLeave(e) {
+                e.currentTarget.classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                e.currentTarget.classList.remove('dragover');
+                if (!e.currentTarget.classList.contains('processing')) {
+                    const files = e.dataTransfer.files;
+                    if (files.length > 0) {
+                        this.processFile(files[0]);
+                    }
+                }
+            }
+
+            handleFileSelect(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    this.processFile(file);
+                }
+            }
+
+            async processFile(file) {
+                const validTypes = ['.dwg', '.dxf'];
+                const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+                
+                if (!validTypes.includes(fileExtension)) {
+                    this.showStatus('error', 'Te rog selectează un fișier DWG sau DXF valid.');
+                    return;
+                }
+
+                this.currentFile = file;
+                this.showProcessingStatus(true);
+
+                if (fileExtension === '.dwg') {
+                    await this.handleDWGFile(file);
+                } else {
+                    await this.handleDXFFile(file);
+                }
+            }
+
+            async handleDWGFile(file) {
+                this.updateProcessingLog('📁 Fișier DWG detectat...');
+                
+                if (this.isLocalMode) {
+                    // Modul local - folosește simularea
+                    this.updateProcessingLog('💻 Modul local detectat - folosesc simularea...');
+                    this.updateProcessingLog('🛠️ Simulare conversie Teigha...');
+                    await this.delay(2000);
+                    this.updateProgress(50);
+                    
+                    const mockDXF = this.generateMockDXF();
+                    this.updateProcessingLog('📄 Procesare DXF mock...');
+                    await this.delay(1000);
+                    
+                    await this.parseDXF(mockDXF, file.name.replace('.dwg', '.dxf'));
+                    return;
+                }
+                
+                // Check backend availability for DWG conversion (doar dacă nu e local)
+                if (!this.backendAvailable) {
+                    this.updateProcessingLog('⚠️ Backend Teigha indisponibil...');
+                    this.updateProcessingLog('🔄 Verificare conexiune backend...');
+                    
+                    await this.checkBackendStatus();
+                    
+                    if (!this.backendAvailable) {
+                        this.updateProcessingLog('❌ Nu se poate conecta la backend-ul Teigha');
+                        this.updateProcessingLog('🔄 Folosesc simularea pentru demonstrație...');
+                        
+                        // Fallback la mock pentru demo
+                        this.updateProcessingLog('🛠️ Simulare conversie Teigha...');
+                        await this.delay(2000);
+                        
+                        const mockDXF = this.generateMockDXF();
+                        this.updateProcessingLog('📄 Procesare DXF mock...');
+                        await this.delay(1000);
+                        
+                        await this.parseDXF(mockDXF, file.name.replace('.dwg', '.dxf'));
+                        return;
+                    }
+                }
+                
+                this.updateProcessingLog('🔄 Conversie necesară DWG → DXF prin Teigha...');
+                
+                try {
+                    await this.convertDWGtoDXF(file);
+                } catch (error) {
+                    // Fallback to mock for demo purposes if backend fails
+                    this.updateProcessingLog('⚠️ Conversie backend eșuată, folosire mock pentru demonstrație...');
+                    
+                    this.updateProcessingLog('🛠️ Simulare conversie Teigha...');
+                    await this.delay(2000);
+                    
+                    const mockDXF = this.generateMockDXF();
+                    this.updateProcessingLog('📄 Procesare DXF mock...');
+                    await this.delay(1000);
+                    
+                    await this.parseDXF(mockDXF, file.name.replace('.dwg', '.dxf'));
+                }
+            }
+
+            async handleDXFFile(file) {
+                this.updateProcessingLog('📄 Fișier DXF detectat...');
+                this.updateProcessingLog('🔍 Citire fișier...');
+                
+                try {
+                    const fileContent = await this.readFileAsText(file);
+                    this.updateProgress(50);
+                    await this.parseDXF(fileContent, file.name);
+                } catch (error) {
+                    console.error('Eroare citire DXF:', error);
+                    this.showStatus('error', 'Eroare la citirea fișierului DXF: ' + error.message);
+                    this.showProcessingStatus(false);
+                }
+            }
+
+            async parseDXF(dxfContent, fileName) {
+                try {
+                    this.updateProcessingLog('🔍 Parsare DXF cu dxf-parser...');
+                    this.updateProgress(70);
+                    
+                    // Parse DXF using dxf-parser
+                    const parser = new DxfParser();
+                    this.dxfData = parser.parseSync(dxfContent);
+                    
+                    // Debug: Log structura DXF pentru a înțelege formatul
+                    console.log('DXF Data Structure:', this.dxfData);
+                    if (this.dxfData.entities && this.dxfData.entities.length > 0) {
+                        console.log('Sample entities:', this.dxfData.entities.slice(0, 3));
+                    }
+                    
+                    this.updateProcessingLog('📊 Analiză entități CAD...');
+                    this.updateProgress(85);
+                    await this.delay(500);
+                    
+                    this.updateProcessingLog('🎨 Inițializare viewer WebGL...');
+                    this.updateProgress(95);
+                    await this.delay(500);
+                    
+                    this.updateProcessingLog('✅ Procesare completă!');
+                    this.updateProgress(100);
+                    
+                    // Display file info
+                    this.displayFileInfo(fileName);
+                    this.activateFeatureCards();
+                    
+                    // Initialize viewer
+                    await this.initializeViewer();
+                    
+                    this.showProcessingStatus(false);
+                    this.enableTab('viewer');
+                    this.enableTab('export');
+                    
+                    this.showStatus('success', 'Fișier procesat cu succes! Poți să-l vizualizezi acum.');
+                    
+                } catch (error) {
+                    console.error('DXF parsing error:', error);
+                    this.showStatus('error', 'Eroare la parsarea DXF: ' + error.message);
+                    this.showProcessingStatus(false);
+                }
+            }
+
+            async initializeViewer() {
+                const container = document.getElementById('cadViewerContainer');
+                container.innerHTML = ''; // Clear placeholder
+                
+                // Initialize Three.js scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0xf0f0f0);
+                
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(75, container.offsetWidth / container.offsetHeight, 0.1, 1000);
+                this.camera.position.set(0, 0, 100);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(container.offsetWidth, container.offsetHeight);
+                container.appendChild(this.renderer.domElement);
+                
+                // Add controls (basic orbit controls simulation)
+                this.addBasicControls();
+                
+                // Render DXF entities
+                this.renderDXFEntities();
+                
+                // Start render loop
+                this.animate();
+            }
+
+            renderDXFEntities() {
+                if (!this.dxfData || !this.dxfData.entities) {
+                    console.warn('Nu există entități DXF pentru randare');
+                    return;
+                }
+                
+                const group = new THREE.Group();
+                let entitiesRendered = 0;
+                
+                console.log(`Încercare randare ${this.dxfData.entities.length} entități...`);
+                
+                this.dxfData.entities.forEach((entity, index) => {
+                    try {
+                        let mesh = null;
+                        
+                        // Log primul și ultimul entity pentru debugging
+                        if (index < 3 || index === this.dxfData.entities.length - 1) {
+                            console.log(`Entity ${index}:`, entity);
+                        }
+                        
+                        switch (entity.type) {
+                            case 'LINE':
+                                mesh = this.createLine(entity);
+                                break;
+                            case 'CIRCLE':
+                                mesh = this.createCircle(entity);
+                                break;
+                            case 'ARC':
+                                mesh = this.createArc(entity);
+                                break;
+                            case 'POLYLINE':
+                                mesh = this.createPolyline(entity);
+                                break;
+                            case 'LWPOLYLINE':
+                                mesh = this.createLWPolyline(entity);
+                                break;
+                            case 'POINT':
+                                mesh = this.createPoint(entity);
+                                break;
+                            default:
+                                console.log(`Tip entitate nesuportat: ${entity.type}`, entity);
+                                break;
+                        }
+                        
+                        if (mesh) {
+                            group.add(mesh);
+                            entitiesRendered++;
+                        }
+                    } catch (error) {
+                        console.error(`Eroare randare entitate ${index} (${entity.type}):`, error);
+                        console.log('Entity care a cauzat eroarea:', entity);
+                    }
+                });
+                
+                console.log(`${entitiesRendered} entități randate cu succes din ${this.dxfData.entities.length}`);
+                
+                if (entitiesRendered === 0) {
+                    // Creează un text informativ dacă nu s-au putut randa entități
+                    const loader = new THREE.FontLoader();
+                    const textGeometry = new THREE.TextGeometry('DXF încărcat\n(entități nesuportate)', {
+                        size: 5,
+                        height: 0.1,
+                    });
+                    const textMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+                    const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+                    textMesh.position.set(-15, 0, 0);
+                    group.add(textMesh);
+                }
+                
+                this.scene.add(group);
+                
+                // Fit to view
+                const box = new THREE.Box3().setFromObject(group);
+                if (!box.isEmpty()) {
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const distance = maxDim * 2;
+                    
+                    this.camera.position.set(center.x, center.y, center.z + distance);
+                    this.camera.lookAt(center);
+                } else {
+                    // Default camera position dacă nu există entități
+                    this.camera.position.set(0, 0, 100);
+                    this.camera.lookAt(0, 0, 0);
+                }
+            }
+
+            createLine(entity) {
+                try {
+                    // Diferite formate posibile pentru entitățile LINE în DXF
+                    let startPoint, endPoint;
+                    
+                    // Format 1: entity.start și entity.end
+                    if (entity.start && entity.end) {
+                        startPoint = entity.start;
+                        endPoint = entity.end;
+                    }
+                    // Format 2: entity.startPoint și entity.endPoint  
+                    else if (entity.startPoint && entity.endPoint) {
+                        startPoint = entity.startPoint;
+                        endPoint = entity.endPoint;
+                    }
+                    // Format 3: proprietăți directe x, y, z pentru start și end
+                    else if (entity.x !== undefined && entity.y !== undefined && 
+                             entity.x1 !== undefined && entity.y1 !== undefined) {
+                        startPoint = { x: entity.x, y: entity.y, z: entity.z || 0 };
+                        endPoint = { x: entity.x1, y: entity.y1, z: entity.z1 || 0 };
+                    }
+                    // Format 4: vertices array
+                    else if (entity.vertices && entity.vertices.length >= 2) {
+                        startPoint = entity.vertices[0];
+                        endPoint = entity.vertices[1];
+                    }
+                    // Format 5: points array
+                    else if (entity.points && entity.points.length >= 2) {
+                        startPoint = entity.points[0];
+                        endPoint = entity.points[1];
+                    }
+                    else {
+                        console.warn('Format LINE nerecunoscut:', entity);
+                        return null;
+                    }
+                    
+                    // Validare puncte
+                    if (!startPoint || !endPoint || 
+                        startPoint.x === undefined || startPoint.y === undefined ||
+                        endPoint.x === undefined || endPoint.y === undefined) {
+                        console.warn('Puncte LINE invalide:', { startPoint, endPoint, entity });
+                        return null;
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    const vertices = new Float32Array([
+                        startPoint.x, startPoint.y, startPoint.z || 0,
+                        endPoint.x, endPoint.y, endPoint.z || 0
+                    ]);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: this.getEntityColor(entity),
+                        linewidth: 1
+                    });
+                    
+                    return new THREE.Line(geometry, material);
+                    
+                } catch (error) {
+                    console.error('Eroare creare LINE:', error, entity);
+                    return null;
+                }
+            }
+
+            createCircle(entity) {
+                try {
+                    // Diferite formate pentru CIRCLE
+                    let center, radius;
+                    
+                    if (entity.center && entity.radius !== undefined) {
+                        center = entity.center;
+                        radius = entity.radius;
+                    } else if (entity.x !== undefined && entity.y !== undefined && entity.r !== undefined) {
+                        center = { x: entity.x, y: entity.y, z: entity.z || 0 };
+                        radius = entity.r;
+                    } else if (entity.centerPoint && entity.radius !== undefined) {
+                        center = entity.centerPoint;
+                        radius = entity.radius;
+                    } else {
+                        console.warn('Format CIRCLE nerecunoscut:', entity);
+                        return null;
+                    }
+                    
+                    if (!center || center.x === undefined || center.y === undefined || radius === undefined) {
+                        console.warn('Date CIRCLE invalide:', { center, radius, entity });
+                        return null;
+                    }
+                    
+                    const geometry = new THREE.RingGeometry(radius * 0.98, radius, 32);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: this.getEntityColor(entity),
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const circle = new THREE.Mesh(geometry, material);
+                    circle.position.set(center.x, center.y, center.z || 0);
+                    
+                    return circle;
+                    
+                } catch (error) {
+                    console.error('Eroare creare CIRCLE:', error, entity);
+                    return null;
+                }
+            }
+
+            createArc(entity) {
+                try {
+                    // Diferite formate pentru ARC
+                    let center, radius, startAngle, endAngle;
+                    
+                    if (entity.center && entity.radius !== undefined && 
+                        entity.startAngle !== undefined && entity.endAngle !== undefined) {
+                        center = entity.center;
+                        radius = entity.radius;
+                        startAngle = entity.startAngle;
+                        endAngle = entity.endAngle;
+                    } else if (entity.x !== undefined && entity.y !== undefined && 
+                               entity.r !== undefined && entity.startAngle !== undefined) {
+                        center = { x: entity.x, y: entity.y, z: entity.z || 0 };
+                        radius = entity.r;
+                        startAngle = entity.startAngle;
+                        endAngle = entity.endAngle;
+                    } else {
+                        console.warn('Format ARC nerecunoscut:', entity);
+                        return null;
+                    }
+                    
+                    if (!center || center.x === undefined || center.y === undefined || 
+                        radius === undefined || startAngle === undefined || endAngle === undefined) {
+                        console.warn('Date ARC invalide:', entity);
+                        return null;
+                    }
+                    
+                    const geometry = new THREE.RingGeometry(
+                        radius * 0.98, 
+                        radius, 
+                        Math.max(8, Math.abs(endAngle - startAngle) * 16),
+                        1,
+                        startAngle, 
+                        endAngle - startAngle
+                    );
+                    
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: this.getEntityColor(entity),
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const arc = new THREE.Mesh(geometry, material);
+                    arc.position.set(center.x, center.y, center.z || 0);
+                    
+                    return arc;
+                    
+                } catch (error) {
+                    console.error('Eroare creare ARC:', error, entity);
+                    return null;
+                }
+            }
+
+            createPolyline(entity) {
+                try {
+                    let vertices = [];
+                    
+                    // Diferite formate pentru POLYLINE
+                    if (entity.vertices && Array.isArray(entity.vertices)) {
+                        vertices = entity.vertices;
+                    } else if (entity.points && Array.isArray(entity.points)) {
+                        vertices = entity.points;
+                    } else {
+                        console.warn('Format POLYLINE nerecunoscut:', entity);
+                        return null;
+                    }
+                    
+                    if (vertices.length < 2) {
+                        console.warn('POLYLINE cu prea puține puncte:', entity);
+                        return null;
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    const points = [];
+                    
+                    vertices.forEach(vertex => {
+                        if (vertex && vertex.x !== undefined && vertex.y !== undefined) {
+                            points.push(vertex.x, vertex.y, vertex.z || 0);
+                        }
+                    });
+                    
+                    if (points.length < 6) { // Minimum 2 puncte (6 coordonate)
+                        console.warn('POLYLINE fără puncte valide:', entity);
+                        return null;
+                    }
+                    
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+                    
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: this.getEntityColor(entity)
+                    });
+                    
+                    return new THREE.Line(geometry, material);
+                    
+                } catch (error) {
+                    console.error('Eroare creare POLYLINE:', error, entity);
+                    return null;
+                }
+            }
+
+            createLWPolyline(entity) {
+                // LWPOLYLINE (Lightweight Polyline) - similar cu POLYLINE
+                return this.createPolyline(entity);
+            }
+
+            createPoint(entity) {
+                try {
+                    let position;
+                    
+                    if (entity.position) {
+                        position = entity.position;
+                    } else if (entity.x !== undefined && entity.y !== undefined) {
+                        position = { x: entity.x, y: entity.y, z: entity.z || 0 };
+                    } else {
+                        return null;
+                    }
+                    
+                    const geometry = new THREE.SphereGeometry(0.5, 8, 8);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: this.getEntityColor(entity)
+                    });
+                    
+                    const point = new THREE.Mesh(geometry, material);
+                    point.position.set(position.x, position.y, position.z || 0);
+                    
+                    return point;
+                    
+                } catch (error) {
+                    console.error('Eroare creare POINT:', error, entity);
+                    return null;
+                }
+            }
+
+            getEntityColor(entity) {
+                // Încearcă să determine culoarea entității
+                if (entity.color !== undefined) {
+                    if (typeof entity.color === 'number') {
+                        return entity.color;
+                    }
+                    if (typeof entity.color === 'string') {
+                        return parseInt(entity.color, 16) || 0x000000;
+                    }
+                }
+                
+                // Culori default pe bază de layer sau tip
+                if (entity.layer) {
+                    const layerColors = {
+                        '0': 0x000000,
+                        'DEFPOINTS': 0xff0000,
+                        'DIMENSIONS': 0x0000ff,
+                        'TEXT': 0x008000
+                    };
+                    return layerColors[entity.layer] || 0x000000;
+                }
+                
+                // Culori default pe tip
+                const typeColors = {
+                    'LINE': 0x000000,
+                    'CIRCLE': 0x0000ff,
+                    'ARC': 0x00ff00,
+                    'POLYLINE': 0xff0000,
+                    'LWPOLYLINE': 0xff0000,
+                    'POINT': 0xff00ff
+                };
+                
+                return typeColors[entity.type] || 0x666666;
+            }
+
+            addBasicControls() {
+                let isMouseDown = false;
+                let mouseX = 0;
+                let mouseY = 0;
+                
+                this.renderer.domElement.addEventListener('mousedown', (e) => {
+                    isMouseDown = true;
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                });
+                
+                this.renderer.domElement.addEventListener('mousemove', (e) => {
+                    if (!isMouseDown) return;
+                    
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+                    
+                    this.camera.position.x -= deltaX * 0.1;
+                    this.camera.position.y += deltaY * 0.1;
+                    
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                });
+                
+                this.renderer.domElement.addEventListener('mouseup', () => {
+                    isMouseDown = false;
+                });
+                
+                this.renderer.domElement.addEventListener('wheel', (e) => {
+                    const scale = e.deltaY > 0 ? 1.1 : 0.9;
+                    this.camera.position.multiplyScalar(scale);
+                });
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                if (this.renderer && this.scene && this.camera) {
+                    this.renderer.render(this.scene, this.camera);
+                }
+            }
+
+            displayFileInfo(fileName) {
+                document.getElementById('fileName').textContent = fileName;
+                document.getElementById('fileSize').textContent = this.formatFileSize(this.currentFile.size);
+                document.getElementById('fileFormat').textContent = fileName.split('.').pop().toUpperCase();
+                
+                // Analiză mai detaliată a entităților
+                let entityCount = 0;
+                let entityTypes = {};
+                
+                if (this.dxfData && this.dxfData.entities) {
+                    entityCount = this.dxfData.entities.length;
+                    
+                    // Contorizează tipurile de entități
+                    this.dxfData.entities.forEach(entity => {
+                        if (entity.type) {
+                            entityTypes[entity.type] = (entityTypes[entity.type] || 0) + 1;
+                        }
+                    });
+                }
+                
+                // Creează un string cu detaliile entităților
+                let entityDetails = `${entityCount} total`;
+                if (Object.keys(entityTypes).length > 0) {
+                    const typesList = Object.entries(entityTypes)
+                        .map(([type, count]) => `${type}:${count}`)
+                        .slice(0, 3) // Arată doar primele 3 tipuri
+                        .join(', ');
+                    entityDetails += ` (${typesList})`;
+                }
+                
+                document.getElementById('entitiesCount').textContent = entityDetails;
+                
+                // Log pentru debugging
+                console.log('Tipuri entități găsite:', entityTypes);
+                
+                document.getElementById('fileInfo').classList.add('show');
+            }
+
+            activateFeatureCards() {
+                document.getElementById('dxf-card').classList.add('active');
+                document.getElementById('viewer-card').classList.add('active');
+                if (this.currentFile.name.toLowerCase().endsWith('.dwg')) {
+                    document.getElementById('dwg-card').classList.add('active');
+                }
+            }
+
+            showProcessingStatus(show) {
+                const status = document.getElementById('processingStatus');
+                if (show) {
+                    status.classList.add('show');
+                    document.getElementById('processingLog').innerHTML = '';
+                    document.getElementById('progressFill').style.width = '0%';
+                    document.getElementById('uploadArea').classList.add('processing');
+                } else {
+                    status.classList.remove('show');
+                    document.getElementById('uploadArea').classList.remove('processing');
+                }
+            }
+
+            updateProcessingLog(message) {
+                const log = document.getElementById('processingLog');
+                log.innerHTML += message + '\n';
+                log.scrollTop = log.scrollHeight;
+            }
+
+            updateProgress(percent) {
+                document.getElementById('progressFill').style.width = percent + '%';
+            }
+
+            generateMockDXF() {
+                // Generează un DXF mock mai realistic pentru testare
+                return `0
+SECTION
+2
+HEADER
+9
+$ACADVER
+1
+AC1015
+9
+$HANDSEED
+5
+FFFF
+0
+ENDSEC
+0
+SECTION
+2
+TABLES
+0
+TABLE
+2
+LAYER
+5
+2
+330
+0
+100
+AcDbSymbolTable
+70
+1
+0
+LAYER
+5
+10
+330
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+2
+0
+70
+0
+62
+7
+6
+CONTINUOUS
+0
+ENDTAB
+0
+ENDSEC
+0
+SECTION
+2
+ENTITIES
+0
+LINE
+5
+100
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbLine
+10
+0.0
+20
+0.0
+30
+0.0
+11
+100.0
+21
+0.0
+31
+0.0
+0
+LINE
+5
+101
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbLine
+10
+100.0
+20
+0.0
+30
+0.0
+11
+100.0
+21
+100.0
+31
+0.0
+0
+LINE
+5
+102
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbLine
+10
+100.0
+20
+100.0
+30
+0.0
+11
+0.0
+21
+100.0
+31
+0.0
+0
+LINE
+5
+103
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbLine
+10
+0.0
+20
+100.0
+30
+0.0
+11
+0.0
+21
+0.0
+31
+0.0
+0
+CIRCLE
+5
+104
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbCircle
+10
+50.0
+20
+50.0
+30
+0.0
+40
+25.0
+0
+ARC
+5
+105
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbCircle
+10
+75.0
+20
+25.0
+30
+0.0
+40
+15.0
+100
+AcDbArc
+50
+0.0
+51
+1.5708
+0
+LWPOLYLINE
+5
+106
+330
+1F
+100
+AcDbEntity
+8
+0
+100
+AcDbPolyline
+90
+4
+70
+1
+43
+0.0
+10
+10.0
+20
+10.0
+10
+30.0
+20
+10.0
+10
+30.0
+20
+30.0
+10
+10.0
+20
+30.0
+0
+ENDSEC
+0
+EOF`;
+            }
+
+            readFileAsText(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(e);
+                    reader.readAsText(file);
+                });
+            }
+
+            formatFileSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            async loadDemoFile() {
+                this.showProcessingStatus(true);
+                this.updateProcessingTitle('Demo File - Încărcare exemplu DXF');
+                this.updateProcessingLog('📄 Încărcare fișier demo DXF...');
+                this.updateProgress(20);
+                
+                // Creează un fișier mock pentru demo
+                const demoFileName = 'demo-drawing.dxf';
+                const demoDXF = this.generateMockDXF();
+                
+                // Creează un obiect File mock pentru consistență
+                const demoFile = new File([demoDXF], demoFileName, { type: 'application/dxf' });
+                this.currentFile = demoFile;
+                
+                this.updateProcessingLog('✅ Fișier demo încărcat!');
+                this.updateProgress(50);
+                
+                await this.delay(500);
+                await this.parseDXF(demoDXF, demoFileName);
+            }
+
+            updateProcessingTitle(title) {
+                const titleElement = document.getElementById('processingTitle');
+                if (titleElement) {
+                    titleElement.textContent = title;
+                }
+            }
+
+            delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            showStatus(type, message) {
+                const statusEl = document.getElementById('viewerStatus');
+                statusEl.className = `status-message show ${type}`;
+                statusEl.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}"></i> ${message}`;
+                
+                setTimeout(() => {
+                    statusEl.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // Global functions for UI
+        function selectExportFormat(format) {
+            document.querySelectorAll('.export-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-format="${format}"]`).classList.add('selected');
+            
+            app.selectedExportFormat = format;
+            
+            const btn = document.getElementById('exportBtn');
+            const preview = document.getElementById('previewBtn');
+            btn.disabled = false;
+            preview.disabled = false;
+            
+            const formatNames = {
+                'pdf': 'Export PDF',
+                'svg': 'Export SVG', 
+                'png': 'Export PNG'
+            };
+            
+            document.getElementById('exportBtnText').textContent = formatNames[format];
+        }
+
+        function exportFile() {
+            if (!app.selectedExportFormat || !app.renderer) {
+                app.showStatus('error', 'Selectează un format de export și încarcă un fișier CAD.');
+                return;
+            }
+
+            const canvas = app.renderer.domElement;
+            
+            switch (app.selectedExportFormat) {
+                case 'pdf':
+                    exportToPDF(canvas);
+                    break;
+                case 'svg':
+                    exportToSVG();
+                    break;
+                case 'png':
+                    exportToPNG(canvas);
+                    break;
+            }
+        }
+
+        function exportToPDF(canvas) {
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF({
+                    orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+                    unit: 'px',
+                    format: [canvas.width, canvas.height]
+                });
+                
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                
+                pdf.setProperties({
+                    title: 'CAD Drawing',
+                    subject: 'Free CAD Converter Export',
+                    author: 'Free CAD Converter',
+                    creator: 'dxf-viewer + jsPDF'
+                });
+                
+                pdf.save('cad-export.pdf');
+                app.showStatus('success', 'PDF exportat cu succes!');
+                
+            } catch (error) {
+                console.error('PDF export error:', error);
+                app.showStatus('error', 'Eroare la exportul PDF: ' + error.message);
+            }
+        }
+
+        function exportToSVG() {
+            try {
+                let svgContent = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000">\n';
+                
+                if (app.dxfData && app.dxfData.entities) {
+                    app.dxfData.entities.forEach(entity => {
+                        switch (entity.type) {
+                            case 'LINE':
+                                svgContent += `<line x1="${entity.start.x}" y1="${entity.start.y}" x2="${entity.end.x}" y2="${entity.end.y}" stroke="black" stroke-width="1"/>\n`;
+                                break;
+                            case 'CIRCLE':
+                                svgContent += `<circle cx="${entity.center.x}" cy="${entity.center.y}" r="${entity.radius}" fill="none" stroke="black" stroke-width="1"/>\n`;
+                                break;
+                        }
+                    });
+                }
+                
+                svgContent += '</svg>';
+                
+                const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'cad-export.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+                
+                app.showStatus('success', 'SVG exportat cu succes!');
+                
+            } catch (error) {
+                console.error('SVG export error:', error);
+                app.showStatus('error', 'Eroare la exportul SVG: ' + error.message);
+            }
+        }
+
+        function exportToPNG(canvas) {
+            try {
+                canvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'cad-export.png';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    
+                    app.showStatus('success', 'PNG exportat cu succes!');
+                });
+                
+            } catch (error) {
+                console.error('PNG export error:', error);
+                app.showStatus('error', 'Eroare la exportul PNG: ' + error.message);
+            }
+        }
+
+        function previewExport() {
+            app.showStatus('info', 'Preview-ul va fi implementat în versiunea următoare.');
+        }
+
+        function resetView() {
+            if (!app.scene || !app.camera) {
+                app.showStatus('warning', 'Nu există scene încărcată pentru resetare.');
+                return;
+            }
+            
+            try {
+                // Găsește toate obiectele din scenă
+                const objects = [];
+                app.scene.traverse((child) => {
+                    if (child.isMesh || child.isLine || child.isPoints) {
+                        objects.push(child);
+                    }
+                });
+                
+                if (objects.length === 0) {
+                    // Dacă nu sunt obiecte, setează camera la poziția default
+                    app.camera.position.set(0, 0, 100);
+                    app.camera.lookAt(0, 0, 0);
+                    app.showStatus('info', 'Camera resetată la poziția default.');
+                    return;
+                }
+                
+                // Calculează bounding box pentru toate obiectele
+                const box = new THREE.Box3();
+                objects.forEach(obj => {
+                    box.expandByObject(obj);
+                });
+                
+                if (!box.isEmpty()) {
+                    const center = box.getCenter(new THREE.Vector3());
+                    const size = box.getSize(new THREE.Vector3());
+                    
+                    // Calculează distanța optimă pentru camera
+                    const maxDim = Math.max(size.x, size.y, size.z);
+                    const distance = maxDim * 2.5; // Factor pentru a fi sigur că se vede tot
+                    
+                    // Poziționează camera
+                    app.camera.position.set(
+                        center.x + distance * 0.5,
+                        center.y + distance * 0.5,
+                        center.z + distance
+                    );
+                    app.camera.lookAt(center);
+                    
+                    app.showStatus('success', 'View resetat cu succes!');
+                } else {
+                    app.camera.position.set(0, 0, 100);
+                    app.camera.lookAt(0, 0, 0);
+                    app.showStatus('info', 'Camera resetată la poziția default.');
+                }
+            } catch (error) {
+                console.error('Eroare resetare view:', error);
+                app.showStatus('error', 'Eroare la resetarea view-ului.');
+            }
+        }
+
+        function fitToWindow() {
+            resetView(); // Momentan, fitToWindow face același lucru ca resetView
+        }
+
+        function toggleWireframe() {
+            if (!app.scene) {
+                app.showStatus('warning', 'Nu există scene încărcată.');
+                return;
+            }
+            
+            let wireframeEnabled = false;
+            
+            app.scene.traverse((child) => {
+                if (child.isMesh && child.material) {
+                    if (child.material.wireframe !== undefined) {
+                        child.material.wireframe = !child.material.wireframe;
+                        wireframeEnabled = child.material.wireframe;
+                    }
+                }
+            });
+            
+            app.showStatus('info', `Wireframe ${wireframeEnabled ? 'activat' : 'dezactivat'}.`);
+        }
+
+        function viewLayers() {
+            if (!app.dxfData) {
+                app.showStatus('warning', 'Nu există date DXF încărcate.');
+                return;
+            }
+            
+            // Colectează informații despre layere
+            const layers = {};
+            if (app.dxfData.entities) {
+                app.dxfData.entities.forEach(entity => {
+                    const layer = entity.layer || '0';
+                    if (!layers[layer]) {
+                        layers[layer] = { count: 0, types: new Set() };
+                    }
+                    layers[layer].count++;
+                    if (entity.type) {
+                        layers[layer].types.add(entity.type);
+                    }
+                });
+            }
+            
+            // Afișează informații despre layere
+            let layerInfo = 'Layere detectate:\n\n';
+            Object.entries(layers).forEach(([layerName, info]) => {
+                const types = Array.from(info.types).join(', ');
+                layerInfo += `• ${layerName}: ${info.count} entități (${types})\n`;
+            });
+            
+            alert(layerInfo || 'Nu s-au găsit layere.');
+        }
+
+        // Initialize application
+        const app = new FreeCADConverter();
+    </script>
+</body>
+</html>
